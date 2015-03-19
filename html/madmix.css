@@ -1,0 +1,12 @@
+body {
+	background-color: black;
+	text-align: center;
+}
+
+#canvas {
+	margin: 2em auto;
+}
+
+#presentacion {
+	display: none;
+}
