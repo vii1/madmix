@@ -19,6 +19,7 @@ function Entity() {
 	this.Think = function( deltaTime ) {};
 	this.Kill = function() {
 		this.status = STATUS.DEAD;
+		entityManager.shouldFilterEntities = true;
 	};
 	this.Freeze = function() {
 		if( this.status != STATUS.DEAD ) {
@@ -33,41 +34,70 @@ function Entity() {
 	return this;
 }
 
-var entityManager = {
-	entities: [],
-	shouldSortEntities: false,
-	lastTime: 0,
-	addEntity: function( ent ) {
+var entityManager = new (function() {
+	this.shouldFilterEntities = false;
+	var entities = [];
+	var shouldSortEntities = false;
+	var lastTime = 0;
+	this.AddEntity = function( ent ) {
 		if( !ent ) return;
-		this.entities.push( ent );
-		this.shouldSortEntities = true;
-	},
-	runFrame: function( timestamp ) {
-		if( this.lastTime == 0 ) {
-			this.lastTime = timestamp;
+		entities.push( ent );
+		shouldSortEntities = true;
+	};
+	this.RunFrame = function( timestamp ) {
+		if( lastTime == 0 ) {
+			lastTime = timestamp;
 		}
-		if( this.shouldSortEntities ) {
-			this.entities.sort( function(a,b) { return a.priority < b.priority } );
-			this.shouldSortEntities = false;
+		if( shouldSortEntities ) {
+			entities.sort( function(a,b) { return a.priority < b.priority } );
+			shouldSortEntities = false;
 		}
-		var ents = this.entities.slice();
-		var deltaTime = timestamp - this.lastTime;
+		var ents = entities.slice();
+		var deltaTime = timestamp - lastTime;
 		ents.map( function( ent ) {
 			if( ent.status == STATUS.AWAKE ) {
 				ent.Think( deltaTime );
 			}
 		});
-		this.entities = this.entities.filter( function( ent ) {
-			return ent.status != STATUS.DEAD;
-		})
-		this.entities.map( function( ent ) {
+		if( this.shouldFilterEntities ) {
+			entities = entities.filter( function( ent ) {
+				return ent.status != STATUS.DEAD;
+			});
+			shouldFilterEntities = false;
+		}
+		entities.map( function( ent ) {
 			if( ent.status == STATUS.NEW ) {
 				ent.status = STATUS.AWAKE;
 			}
 		});
-		this.lastTime = timestamp;
-	}
-};
+		lastTime = timestamp;
+	};
+})();
+
+var painter = new (function() {
+	this.shouldFilterPaintables = false;
+	var paintables = [];
+	var shouldSortPaintables = false;
+	this.AddPaintable = function( p ) {
+		if( !p ) return;
+		paintables.push( p );
+		shouldSortPaintables = true;
+	};
+	this.Paint = function( context ) {
+		if( this.shouldFilterPaintables ) {
+			paintables = paintables.filter( function( p ) {
+				return p.status == null || p.status != STATUS.DEAD;
+			});
+		}
+		if( shouldSortPaintables ) {
+			paintables.sort( function(a,b) { return a.z < b.z } );
+			shouldSortPaintables = false;
+		}
+		for( var i = 0; i < paintables.length; ++i ) {
+			paintables[i].Paint( context );
+		}
+	};
+})();
 
 var res = {
 	intro: {
@@ -82,7 +112,8 @@ var graphics = {
 	canvas: null,
 	context: null,
 	width: 320,
-	height: 200
+	height: 200,
+	clear: true
 };
 
 var sound = {
@@ -121,7 +152,6 @@ function madmix_go() {
 	mus.volume = opciones.musicvol;
 	mus.addEventListener( 'canplay', function() {
 		loaded = true;
-		mus.play();
 	}, true);
 	if( mus.canPlayType( 'audio/ogg' ) ) {
 		mus.src = sound.musica.ogg;
@@ -150,7 +180,7 @@ function madmix_go() {
 		}
 	}
 	console.log("Iniciando mainLoop...")
-	entityManager.addEntity( new Main() );
+	entityManager.AddEntity( new Main() );
 	window.requestAnimationFrame( mainLoop );
 }
 
@@ -165,109 +195,144 @@ function mainLoop( timestamp ) {
 	graphics.context = graphics.canvas.getContext('2d');
 	if( !opciones.smooth ) disableSmooth( graphics.context );
 	graphics.context.setTransform( graphics.canvas.width / graphics.width, 0, 0, graphics.canvas.height / graphics.height, 0, 0 );
-	entityManager.runFrame( timestamp );
+	if( graphics.clear ) {
+		graphics.context.clearRect( 0, 0, graphics.width, graphics.height );
+	}
+	entityManager.RunFrame( timestamp );
+	painter.Paint( graphics.context );
 	window.requestAnimationFrame( mainLoop );
+}
+
+function Sprite( image, x, y ) {
+	this.super = Entity;
+	this.super();
+	this.x = x || 0;
+	this.y = y || 0;
+	this.image = image;
+	this.opacity = 1;
+	this.painter = painter;
+	this.z = 0;
+	painter.AddPaintable( this );	
+	this.Paint = function( ctx ) {
+		if( !this.image ) return;
+		ctx.save();
+		ctx.globalAlpha = this.opacity;
+		ctx.drawImage( this.image, this.x, this.y );
+		ctx.restore();
+	}
+	var super_Kill = this.Kill;
+	this.Kill = function() {
+		super_Kill();
+		painter.shouldFilterPaintables = true;
+	}
 }
 
 function Main() {
 	console.log("Creando entidad Main()...")
-	this.super = Entity;
+	this.super = Sprite;
 	this.super();
+	this.z = 100;
+	this.opacity = 0;
 	var time = 0;
 	var estado = 0;
 	var flash = 0;
+	var flashing = false;
+	this.Paint = function( ctx ) {
+		ctx.save();
+		if( flashing ) {
+			ctx.fillStyle = 'white';
+			ctx.fillRect( 0, 0, graphics.width, graphics.height );
+			flashing = false;
+		} else if( this.image ) {
+			ctx.globalAlpha = this.opacity;
+			ctx.drawImage( this.image, 0, 0 );
+		}
+		ctx.restore();
+	};
 	this.Think = function( deltaTime ) {
-		var g = graphics.context;
-		time += deltaTime;
-		g.clearRect( 0, 0, graphics.width, graphics.height );
-		if( estado > 1 && estado < 5 ) {
-			g.drawImage( res.intro.splash.image, 0, 0 );
+		if( estado > 0 ) {
+			time += deltaTime;
 		}
 		switch( estado ) {
 			case 0:
 				if( loaded && res.intro.splash.loaded ) {
+					sound.musica.audio.play();
+					this.image = res.intro.splash.image;
 					estado = 1;
-				} else {
-					break;
 				}
+				break;
 			case 1:
 				if( time < 1000 ) {
-					g.globalAlpha = time / 1000;
-					g.drawImage( res.intro.splash.image, 0, 0 );
+					this.opacity = time / 1000;
 				} else {
-					g.globalAlpha = 1.0;
-					g.drawImage( res.intro.splash.image, 0, 0 );
+					this.opacity = 1;
 				}
 				if( time >= 3895 - 480 ) {
-					entityManager.addEntity( new SpriteTitulo( res.intro.mad.image, 320, 100, 70, 5 ) );
+					entityManager.AddEntity( new SpriteTitulo( res.intro.mad.image, 320, 100, 70, 5 ) );
 					estado = 2;
 				}
 				break;
 			case 2:
 				if( time >= 4375 - 480 ) {
-					g.fillStyle = 'white';
-					g.fillRect( 0, 0, graphics.width, graphics.height );
-					entityManager.addEntity( new SpriteTitulo( res.intro.mix.image, -68, 100, 170, 5 ) );
+					flashing = true;
+					entityManager.AddEntity( new SpriteTitulo( res.intro.mix.image, -68, 100, 170, 5 ) );
 					estado = 3;
 				}
 				break;
 			case 3:
 				if( time >= 4855 - 480 ) {
-					g.fillStyle = 'white';
-					g.fillRect( 0, 0, graphics.width, graphics.height );
-					entityManager.addEntity( new SpriteTitulo( res.intro.game.image, 105, 205, 105, 30 ) );					
+					flashing = true;
+					entityManager.AddEntity( new SpriteTitulo( res.intro.game.image, 105, 205, 105, 30 ) );					
 					estado = 4;
 				}
 				break;
 			case 4:
 				if( time >= 4855 ) {
-					g.fillStyle = 'white';
-					g.fillRect( 0, 0, graphics.width, graphics.height );
+					flashing = true;
 					estado = 5;
 					flash = 4855;
 				}
 				break;
 			case 5:
 				if( time >= 7000 ) {
-					g.globalAlpha = 0.3;
+					this.opacity = 0.3;
 				} else if( time >= 6500 ) {
-					g.globalAlpha = 1 - ((time - 6500) / 500 * 0.7);
+					this.opacity = 1 - ((time - 6500) / 500 * 0.7);
 				} else if( time - flash >= 480 ) {
-					g.fillStyle = 'white';
-					g.fillRect( 0, 0, graphics.width, graphics.height );
-					g.globalAlpha = 0;
+					flashing = true;
+					//this.opacity = 0;
 					flash += 480;
 				}
-				g.drawImage( res.intro.splash.image, 0, 0 );
-				g.globalAlpha = 1;
 				break;
 		}
 	}
 }
 
 function smoothstep( edge0, edge1, x ) {
-    // Scale, bias and saturate x to 0..1 range
-    //x = Math.min( Math.max( (x - edge0)/(edge1 - edge0), 0.0 ), 1.0 ); 
 	x = Math.min( Math.max( x, 0.0 ), 1.0 ); 
-    // Evaluate polynomial
-    //return x*x*(3 - 2*x);
     return edge0 + (edge1-edge0) * (x*x*x*(x*(x*6 - 15) + 10));
 }
 
 function SpriteTitulo( imagen, x0, y0, x1, y1 ) {
-	this.super = Entity;
-	this.super();
+	this.super = Sprite;
+	this.super( imagen, x0, y0 );
 	var time = 0;
 	var DURACION = 480;
 	this.Think = function( deltaTime ) {
 		time += deltaTime;
-		var g = graphics.context;		
-		if( time > DURACION ) {
-			g.drawImage( imagen, x1, y1 );
-			return;
+		if( time <= DURACION ) {
+			var f = time / DURACION;
+			this.x = smoothstep( x0, x1, f );
+			this.y = smoothstep( y0, y1, f );
+		} else {
+			this.x = x1;
+			this.y = y1;
 		}
-		var f = time / DURACION;
-		//g.drawImage( imagen, x0 + (x1-x0) * f, y0 + (y1-y0) * f );
-		g.drawImage( imagen, smoothstep( x0, x1, f ), smoothstep( y0, y1, f ) );
 	}
+}
+
+function Menu() {
+	this.super = Entity;
+	this.super();
+
 }
