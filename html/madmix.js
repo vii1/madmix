@@ -83,6 +83,13 @@ var painter = new (function() {
 		paintables.push( p );
 		shouldSortPaintables = true;
 	};
+	this.RemovePaintable = function( p ) {
+		if( !p ) return;
+		var i = paintables.findIndex( function(x) { return x === p; });
+		if( i >= 0 ) {
+			paintables.splice( i, 1 );
+		}
+	}
 	this.Paint = function( context ) {
 		if( this.shouldFilterPaintables ) {
 			paintables = paintables.filter( function( p ) {
@@ -105,6 +112,9 @@ var res = {
 		mad: { file: 'graficos/mad.png' },
 		mix: { file: 'graficos/mix.png' },
 		game: { file: 'graficos/game.png' }
+	},
+	fonts: {
+		font: { file: 'graficos/caracteres.png' }
 	}
 }
 
@@ -143,8 +153,6 @@ var loaded = false;
 
 function madmix_go() {
 	console.log("* * * Mad Mix Game * * *");
-	//cargando = document.getElementById('cargando');
-	//presentacion = document.getElementById('presentacion');
 	graphics.canvas = document.getElementById('canvas');
 	console.log("Cargando recursos...");
 	var mus = new Audio();
@@ -194,6 +202,7 @@ function disableSmooth( context ) {
 function mainLoop( timestamp ) {
 	graphics.context = graphics.canvas.getContext('2d');
 	if( !opciones.smooth ) disableSmooth( graphics.context );
+	// TODO: Respetar relación de aspecto (necesario para fullscreen)
 	graphics.context.setTransform( graphics.canvas.width / graphics.width, 0, 0, graphics.canvas.height / graphics.height, 0, 0 );
 	if( graphics.clear ) {
 		graphics.context.clearRect( 0, 0, graphics.width, graphics.height );
@@ -225,6 +234,34 @@ function Sprite( image, x, y ) {
 		super_Kill();
 		painter.shouldFilterPaintables = true;
 	}
+}
+
+function Text( x, y, text ) {
+	this.super = Entity;
+	this.super();
+	this.painter = painter;
+	this.x = x || 0;
+	this.y = y || 0;
+	this.text = text || '';
+	this.z = -100;
+	painter.AddPaintable( this );
+	this.Paint = function( ctx ) {
+		var x = this.x;
+		for( var i = 0; i < text.length; ++i ) {
+			var c = text.charCodeAt( i );
+			// '!'..'Z'
+			if( c >= 33 && c <= 90 ) {
+				c -= 32;
+				ctx.drawImage(
+					res.fonts.font.image,
+					(c % 8) * 10 + 2, (c >> 3) * 10 + 2,
+					8, 8,
+					x, this.y,
+					8, 8 );
+			}
+			x += 8;
+		}
+	};
 }
 
 function Main() {
@@ -296,6 +333,8 @@ function Main() {
 			case 5:
 				if( time >= 7000 ) {
 					this.opacity = 0.3;
+					entityManager.AddEntity( new Menu() );
+					estado = 6;
 				} else if( time >= 6500 ) {
 					this.opacity = 1 - ((time - 6500) / 500 * 0.7);
 				} else if( time - flash >= 480 ) {
@@ -334,5 +373,10 @@ function SpriteTitulo( imagen, x0, y0, x1, y1 ) {
 function Menu() {
 	this.super = Entity;
 	this.super();
-
+	var lista = [ 'JUGAR', 'RECORDS', 'OPCIONES', 'AYUDA', 'CREDITOS' ];
+	var textos = [];
+	for( var i = 0; i < lista.length; ++i ) {
+		var x = 155 - lista[i].length * 8 / 2;
+		textos[i] = new Text( x, graphics.height / 2 + i * 16, lista[i] );
+	}
 }
