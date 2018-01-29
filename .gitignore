@@ -1,0 +1,6 @@
+__javascript__/
+__pycache__/
+/html/js/
+/COSAS
+.mypy_cache/
+/.vs/
