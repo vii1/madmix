@@ -1,36 +1,40 @@
-'''Gestor de paintables y painter'''
+'''Painter and paintable manager'''
 
 from entity import Entity
 
 class Paintable(Entity):
-	z : int = 0
-	def Paint( context ):
-		pass
+    '''Entity that has some representation on screen and thus can be painted'''
+    z : int = 0
+    def paint( context ):
+        pass
 
 class Painter:
-	shouldFilterPaintables : bool = False
-	paintables : list = []
-	shouldSortPaintables : bool = False
+    '''Manages paintable objects and paints them to screen'''
+    shouldFilterPaintables : bool = False
+    paintables : list = []
+    shouldSortPaintables : bool = False
 
-	def AddPaintable( p : Paintable ):
-		if p is None: return
-		Painter.paintables.append( p )
-		Painter.shouldSortPaintables = True
+    @classmethod
+    def add_paintable( cls, p : Paintable ):
+        if p is None: return
+        cls.paintables.append( p )
+        cls.shouldSortPaintables = True
 
-	def RemovePaintable( p : Paintable ):
-		if p is None: return
-		try:
-			Painter.paintables.remove( p )
-		except ValueError:
-			pass
+    @classmethod
+    def remove_paintable( cls, p : Paintable ):
+        if p is None: return
+        try:
+            cls.paintables.remove( p )
+        except ValueError:
+            pass
 
-	def Paint( context ):
-		self = Painter
-		#if self.shouldFilterPaintables:
-		#	self.paintables = [ p for p in self.paintables if p.status != Status.DEAD ]
-		#	self.shouldFilterPaintables = False
-		if self.shouldSortPaintables:
-			self.paintables.sort( reverse=False, key=lambda p: p.z)
-			self.shouldSortPaintables = False
-		for p in self.paintables:
-			p.Paint( context )
+    @classmethod
+    def paint( cls, context ):
+        #if cls.shouldFilterPaintables:
+        #    cls.paintables = [ p for p in cls.paintables if p.status != Status.DEAD ]
+        #    cls.shouldFilterPaintables = False
+        if cls.shouldSortPaintables:
+            cls.paintables.sort( reverse=False, key=lambda p: p.z)
+            cls.shouldSortPaintables = False
+        for p in cls.paintables:
+            p.paint( context )

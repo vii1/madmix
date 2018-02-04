@@ -1,64 +1,63 @@
-'''Gestor de entidades'''
+'''Entity manager'''
 
-from enum import Enum
-
-class Status( Enum ):
-	'''Estado de una entidad'''
-	NEW = 0
-	AWAKE = 1
-	FROZEN = 2
-	DEAD = 3
+class Status:
+    '''Status of an entity'''
+    NEW = 0
+    AWAKE = 1
+    FROZEN = 2
+    DEAD = 3
 
 class Entity:
-	'''Una entidad es un objeto que "piensa" en cada frame'''
-	priority : int = 0
-	status : Status = Status.NEW
+    '''An entity is an object that "thinks" every frame'''
+    priority : int = 0
+    status : Status = Status.NEW
 
-	def Think( self, deltaTime ):
-		pass
+    def Think( self, deltaTime ):
+        pass
 
-	def Kill( self ):
-		self.status = Status.DEAD
-		EntityManager.shouldFilterEntities = True
+    def Kill( self ):
+        self.status = Status.DEAD
+        EntityManager.shouldFilterEntities = True
 
-	def Freeze( self ):
-		if self.status != Status.DEAD:
-			self.status = Status.FROZEN
+    def Freeze( self ):
+        if self.status != Status.DEAD:
+            self.status = Status.FROZEN
 
-	def Unfreeze( self ):
-		if self.status == Status.FROZEN:
-			self.status = Status.AWAKE
+    def Unfreeze( self ):
+        if self.status == Status.FROZEN:
+            self.status = Status.AWAKE
 
 
 class EntityManager:
-	'''EntityManager gestiona la lista de entidades, procesa las señales y las ejecuta en orden de prioridad'''
-	shouldFilterEntities : bool = False
-	entities : list = []
-	shouldSortEntities : bool = False
-	lastTime : float = 0
+    '''EntityManager manages the entity list, processes signals and runs entities in priority order'''
+    shouldFilterEntities : bool = False
+    entities : list = []
+    shouldSortEntities : bool = False
+    lastTime : float = 0
 
-	def AddEntity( ent : Entity ):
-		if ent is None: return
-		EntityManager.entities.append( ent )
-		EntityManager.shouldSortEntities = True
+    @classmethod
+    def AddEntity( cls, ent : Entity ):
+        if ent is None: return
+        cls.entities.append( ent )
+        cls.shouldSortEntities = True
 
-	def RunFrame( timestamp : float ):
-		self = EntityManager
-		if self.lastTime == 0:
-			self.lastTime = timestamp
-		if self.shouldSortEntities:
-			# Ejecutamos las entidades de mayor a menor prioridad
-			self.entities.sort( reverse=True, key=lambda e: e.priority )
-			self.shouldSortEntities = False
-		ents = self.entities[:]
-		deltaTime = timestamp - self.lastTime
-		for e in ents:
-			if e.status == Status.AWAKE:
-				e.Think( deltaTime )
-		if self.shouldFilterEntities:
-			self.entities = [ e for e in self.entities if e.status != Status.DEAD ]
-			self.shouldFilterEntities = False
-		for e in self.entities:
-			if e.status == Status.NEW:
-				e.status = Status.AWAKE
-		self.lastTime = timestamp
+    @classmethod
+    def RunFrame( cls, timestamp : float ):
+        if cls.lastTime == 0:
+            cls.lastTime = timestamp
+        if cls.shouldSortEntities:
+            # Ejecutamos las entidades de mayor a menor prioridad
+            cls.entities.sort( reverse=True, key=lambda e: e.priority )
+            cls.shouldSortEntities = False
+        ents = cls.entities[:]
+        deltaTime = timestamp - cls.lastTime
+        for e in ents:
+            if e.status == Status.AWAKE:
+                e.Think( deltaTime )
+        if cls.shouldFilterEntities:
+            cls.entities = [ e for e in cls.entities if e.status != Status.DEAD ]
+            cls.shouldFilterEntities = False
+        for e in cls.entities:
+            if e.status == Status.NEW:
+                e.status = Status.AWAKE
+        cls.lastTime = timestamp

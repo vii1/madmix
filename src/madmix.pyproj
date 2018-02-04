@@ -22,8 +22,20 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="entity.py" />
+    <Compile Include="graphics.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="madmix.py" />
     <Compile Include="painter.py" />
+    <Compile Include="resources.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="sound.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="stubs.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
