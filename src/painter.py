@@ -1,22 +1,27 @@
 '''Painter and paintable manager'''
 
-from entity import Entity
+class Paintable:
+    '''Object that has some representation on screen and thus can be painted'''
+    z = 0
 
-class Paintable(Entity):
-    '''Entity that has some representation on screen and thus can be painted'''
-    z : int = 0
-    def paint( context ):
+    def paint(self, context ):
         pass
+
+    def show(self):
+        Painter.add_paintable( self )
+
+    def hide(self):
+        Painter.remove_paintable( self )
 
 class Painter:
     '''Manages paintable objects and paints them to screen'''
-    shouldFilterPaintables : bool = False
-    paintables : list = []
-    shouldSortPaintables : bool = False
+    #shouldFilterPaintables : bool = False
+    paintables = []
+    shouldSortPaintables = False
 
     @classmethod
     def add_paintable( cls, p : Paintable ):
-        if p is None: return
+        if p is None or p in cls.paintables: return
         cls.paintables.append( p )
         cls.shouldSortPaintables = True
 
@@ -34,7 +39,7 @@ class Painter:
         #    cls.paintables = [ p for p in cls.paintables if p.status != Status.DEAD ]
         #    cls.shouldFilterPaintables = False
         if cls.shouldSortPaintables:
-            cls.paintables.sort( reverse=False, key=lambda p: p.z)
+            cls.paintables.sort( reverse=True, key=lambda p: p.z)
             cls.shouldSortPaintables = False
         for p in cls.paintables:
             p.paint( context )
